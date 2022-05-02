@@ -8,6 +8,12 @@ import os
 import validators
 from validators import ValidationFailure
 from returns import RETURNS
+from youtube_dl import YoutubeDL
+from asyncio import sleep
+
+
+YDL_OPTIONS = {'format': 'bestaudio', 'noplaylist': 'False'}
+FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
 
 
 def is_string_an_url(url_string: str) -> bool:
@@ -33,7 +39,7 @@ class Flex(commands.Cog):
         user = db_sess.query(User).filter(User.name == ctx.author.id).first()
         if user:
             # TODO добавить timeout
-            if not is_string_an_url(url):
+            '''if not is_string_an_url(url):
                 await ctx.send('Неправильный url прекола')
                 return
             song = os.path.isfile("song.mp3")
@@ -41,28 +47,31 @@ class Flex(commands.Cog):
                 if song:
                     os.remove("song.mp3")
             except PermissionError:
-                await ctx.send("Дождитесь окончания флекса или используйте комманду 'стоп'")
+                await ctx.send("Дождитесь окончания флекса или используйте комманду 'стоп'")'''
+            if not is_string_an_url(url):
+                await ctx.send('Неправильный url прекола')
+                return
 
-            voice_channel = discord.utils.get(ctx.guild.voice_channels, name='General')
-            await voice_channel.connect()
-            voice = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
-            global is_vc_connected
-            is_vc_connected = True
+            try:
+                voice_channel = discord.utils.get(ctx.guild.voice_channels, name='General')
+                vc = await voice_channel.connect()
+                voice = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
+                global is_vc_connected
+                is_vc_connected = True
+            except:
+                await ctx.send('Уже подключен или не удалось подключится')
 
-            ydl_opts = {
-                'format': 'bestaudio/best',
-                'postprocessors': [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',
-                    'preferredquality': '192',
-                }],
-            }
-            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([url])
-            for file in os.listdir("./"):
-                if file.endswith(".mp3"):
-                    os.rename(file, "song.mp3")
-            voice.play(discord.FFmpegPCMAudio("song.mp3"))
+            with YoutubeDL(YDL_OPTIONS) as ydl:
+                info = ydl.extract_info(url, download=False)
+
+            URL = info['formats'][0]['url']
+
+            voice.play(discord.FFmpegPCMAudio(executable="ffmpeg.exe", source=URL, **FFMPEG_OPTIONS))
+
+            while voice.is_playing():
+                await sleep(1)
+            if not voice.is_paused():
+                await voice.disconnect()
         else:
             await ctx.send(RETURNS['not_registered'])
 
@@ -78,6 +87,7 @@ class Flex(commands.Cog):
             voice = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
             if voice.is_connected():
                 await voice.disconnect()
+                is_vc_connected = False
             else:
                 await ctx.send("Флекса не подключен")
         else:
