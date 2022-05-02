@@ -11,6 +11,7 @@ class User(SqlAlchemyBase):
     name = sqlalchemy.Column(sqlalchemy.String, nullable=False)
 
     event = orm.relation('Event')
+    bet = orm.relation('Bet')
 
     def __init__(self, name, money=1000):
         self.name = name

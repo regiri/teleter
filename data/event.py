@@ -8,6 +8,7 @@ class Event(SqlAlchemyBase):
 
     id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
     creator = sqlalchemy.Column(sqlalchemy.String, sqlalchemy.ForeignKey("users.id"), nullable=False)
+    open_id = sqlalchemy.Column(sqlalchemy.Integer, nullable=False, autoincrement=True, unique=True, default=1)
     name = sqlalchemy.Column(sqlalchemy.String, nullable=False)
     first_end = sqlalchemy.Column(sqlalchemy.String, nullable=False)
     first_bank = sqlalchemy.Column(sqlalchemy.Integer, nullable=False)
@@ -17,6 +18,7 @@ class Event(SqlAlchemyBase):
     closed = sqlalchemy.Column(sqlalchemy.Boolean, nullable=False)
 
     user_created = orm.relation('User', back_populates='event')
+    bet = orm.relation('Bet')
 
     def __init__(self, creator, name, first_end, second_end, min_raise=0):
         self.creator = creator
