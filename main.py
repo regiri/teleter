@@ -1,3 +1,4 @@
+# PETYA LOX
 # MISHA LOX
 
 import discord
@@ -7,6 +8,8 @@ from data import db_session
 from data.user import User
 from data.event import Event
 from data.bet import Bet
+from flex import Flex
+from returns import RETURNS, TOKEN
 
 intents = discord.Intents.default()
 intents.members = True
@@ -44,7 +47,7 @@ class TeleterCog(commands.Cog):
             elif user.money > 10000:
                 await ctx.send(f'настоящий богач')
         else:
-            await ctx.send(returns['not_registered'])
+            await ctx.send(RETURNS['not_registered'])
 
     @commands.command(name=command_names['register'])
     async def register(self, ctx: Context):
@@ -74,7 +77,7 @@ class TeleterCog(commands.Cog):
             db_sess.commit()
             await ctx.send(f"Событие {event_name} создано успешно!")
         else:
-            await ctx.send(returns['not_registered'])
+            await ctx.send(RETURNS['not_registered'])
 
     @commands.command(name=command_names['show_board'])
     async def show_board(self, ctx: Context):
@@ -163,7 +166,7 @@ class TeleterCog(commands.Cog):
 
 
 bot = commands.Bot(command_prefix='!!', intents=intents)
+bot.add_cog(Flex(bot))
 bot.add_cog(TeleterCog(bot))
 db_session.global_init("db/teleter.sqlite")
-TOKEN = 'OTcwNDQ0MzY2MTcyNzgyNjQz.Ym8Cvg.7C80LVXmfWDZAfdYAeUes_WXXf8'
 bot.run(TOKEN)
