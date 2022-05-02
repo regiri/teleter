@@ -7,10 +7,8 @@ from data import db_session
 from data.user import User
 from data.event import Event
 
-
 intents = discord.Intents.default()
 intents.members = True
-
 
 returns = {
     'not_registered': 'зарегайся сначала, чел'
@@ -64,12 +62,23 @@ class TeleterCog(commands.Cog):
         else:
             await ctx.send(returns['not_registered'])
 
+    @commands.command(name='доска_событий')
+    async def show_board(self, ctx: Context):
+        db_sess = db_session.create_session()
+        user = db_sess.query(User).filter(User.name == ctx.author.id).first()
+        if user:
+            events = db_sess.query(Event).filter(Event.closed == False).all()
+            if events:
+                for event in events:
+                    await ctx.send(f"Событие {event.name} с исходами {event.first_end} и {event.second_end}")
+            else:
+                await ctx.send('нет событий')
+        else:
+            await ctx.send(returns['not_registered'])
+
 
 bot = commands.Bot(command_prefix='!!', intents=intents)
 bot.add_cog(TeleterCog(bot))
 db_session.global_init("db/teleter.sqlite")
 TOKEN = 'OTcwNDQ0MzY2MTcyNzgyNjQz.Ym8Cvg.7C80LVXmfWDZAfdYAeUes_WXXf8'
 bot.run(TOKEN)
-
-
-
