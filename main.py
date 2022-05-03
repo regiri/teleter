@@ -9,65 +9,46 @@ from data.user import User
 from data.event import Event
 from data.bet import Bet
 from flex import Flex
-from returns import RETURNS, TOKEN
+from globals import ERRORS, TOKEN, COMMAND_NAMES, MESSAGES, HELP
 
 intents = discord.Intents.default()
 intents.members = True
-
-returns = {
-    'not_registered': 'зарегайся сначала, чел.',
-    'event_not_exist': 'такого события не найдено.',
-    'bet_on_two_sides': 'никаких вилок, чел. ложек тоже не надо. (нельзя ставить на оба исхода события))',
-    'not_enough_money': 'у тебя не хватает деняк, чел.'
-}
-
-command_names = {
-    'show_money': 'сколько_деняк',
-    'register': 'регистрация',
-    'pleh': 'помощь',
-    'create_event': 'создать_событие',
-    'show_board': 'доска_событий',
-    'close_event': 'закрыть_событие',
-    'make_bet': 'ставка'
-}
 
 
 class TeleterCog(commands.Cog):
     def __init__(self, d_bot):
         self.bot = d_bot
 
-    @commands.command(name=command_names['show_money'])
+    @commands.command(name=COMMAND_NAMES['show_money'])
     async def show_money(self, ctx: Context):
         db_sess = db_session.create_session()
         user = db_sess.query(User).filter(User.name == ctx.author.id).first()
         if user:
-            await ctx.send(f'у тебя {user.money} деняк')
+            await ctx.send(MESSAGES['show_money_1'].format(user.money))
             if user.money <= 100:
-                await ctx.send(f'нищеброд')
+                await ctx.send(MESSAGES['show_money_2_1'])
             elif user.money > 10000:
-                await ctx.send(f'настоящий богач')
+                await ctx.send(MESSAGES['show_money_2_2'])
         else:
-            await ctx.send(RETURNS['not_registered'])
+            await ctx.send(ERRORS['not_registered'])
 
-    @commands.command(name=command_names['register'])
+    @commands.command(name=COMMAND_NAMES['register'])
     async def register(self, ctx: Context):
         db_sess = db_session.create_session()
         print(ctx.author.id)
         user = db_sess.query(User).filter(User.name == ctx.author.id).first()
         if user:
-            await ctx.send("Такой пользователь уже есть")
-            return
+            await ctx.send(ERRORS['already_registered'])
         else:
-            await ctx.send("Пользователь успешно зареган")
+            await ctx.send(MESSAGES['user_registered'])
             db_sess.add(User(ctx.author.id))
             db_sess.commit()
-            return
 
-    @commands.command(name=command_names['pleh'])
+    @commands.command(name=COMMAND_NAMES['pleh'])
     async def pleh(self, ctx: Context):
-        await ctx.send("Миша лох")
+        await ctx.send('\n'.join(HELP))
 
-    @commands.command(name=command_names['create_event'])
+    @commands.command(name=COMMAND_NAMES['create_event'])
     async def create_event(self, ctx: Context, event_name, end_1, end_2):
         db_sess = db_session.create_session()
         user = db_sess.query(User).filter(User.name == ctx.author.id).first()
@@ -75,11 +56,11 @@ class TeleterCog(commands.Cog):
             event = Event(ctx.author.id, event_name, end_1, end_2)
             db_sess.add(event)
             db_sess.commit()
-            await ctx.send(f"Событие {event_name} создано успешно!")
+            await ctx.send(MESSAGES['create_event'].format(event_name))
         else:
-            await ctx.send(RETURNS['not_registered'])
+            await ctx.send(ERRORS['not_registered'])
 
-    @commands.command(name=command_names['show_board'])
+    @commands.command(name=COMMAND_NAMES['show_board'])
     async def show_board(self, ctx: Context):
         db_sess = db_session.create_session()
         user = db_sess.query(User).filter(User.name == ctx.author.id).first()
@@ -88,15 +69,16 @@ class TeleterCog(commands.Cog):
             if events:
                 for (i, event) in enumerate(events):
                     await ctx.send(
-                        f"{i + 1}. Событие {event.name} с исходами {event.first_end}" +
-                        f" и {event.second_end}, публичный ID = {event.open_id}"
+                        MESSAGES['show_board_1'].format(
+                            i + 1, event.name, event.first_end, event.second_end, event.open_id
+                        )
                     )
             else:
-                await ctx.send('нет событий')
+                await ctx.send(MESSAGES['show_board_2'])
         else:
-            await ctx.send(returns['not_registered'])
+            await ctx.send(ERRORS['not_registered'])
 
-    @commands.command(name=command_names['close_event'])
+    @commands.command(name=COMMAND_NAMES['close_event'])
     async def close_event(self, ctx: Context, open_id: int, finale: int):
         db_sess = db_session.create_session()
         user = db_sess.query(User).filter(User.name == ctx.author.id).first()
@@ -118,13 +100,13 @@ class TeleterCog(commands.Cog):
                     bet.user.add_money(int(percent * bank))
                 event.closed = True
                 db_sess.commit()
-                await ctx.send("событие закрыто! поздравляю победителей")
+                await ctx.send(MESSAGES['close_event'])
             else:
-                await ctx.send(returns['event_not_exist'])
+                await ctx.send(ERRORS['event_not_exist'])
         else:
-            await ctx.send(returns['not_registered'])
+            await ctx.send(ERRORS['not_registered'])
 
-    @commands.command(name=command_names['make_bet'])
+    @commands.command(name=COMMAND_NAMES['make_bet'])
     async def make_bet(self, ctx: Context, open_id: int, number: int, money: int):
         db_sess = db_session.create_session()
         user = db_sess.query(User).filter(User.name == ctx.author.id).first()
@@ -141,27 +123,29 @@ class TeleterCog(commands.Cog):
                             else:
                                 event.second_bank += money
                             await ctx.send(
-                                f"Чел, ты добавил {money} на {event.first_end if bet.is_first else event.second_end}\n" +
-                                f"теперь там: {bet.bet_cnt}"
+                                MESSAGES['make_bet_1_1'].format(
+                                    money, event.first_end if bet.is_first else event.second_end, bet.bet_cnt
+                                )
                             )
                         else:
-                            await ctx.send(returns['not_enough_money'])
+                            await ctx.send(ERRORS['not_enough_money'])
                     else:
-                        await ctx.send(returns['bet_on_two_sides'])
+                        await ctx.send(ERRORS['bet_on_two_sides'])
                 else:
                     if user.subtract_money(money):
                         bet = Bet(user.id, open_id, not bool(number - 1), money)
                         await ctx.send(
-                            f"Чел, ты поставил {money} на {event.first_end if bet.is_first else event.second_end}\n" +
-                            f"ставка: {bet.bet_cnt}"
+                            MESSAGES['make_bet_1_2'].format(
+                                money, event.first_end if bet.is_first else event.second_end, bet.bet_cnt
+                            )
                         )
                         db_sess.add(bet)
                     else:
-                        await ctx.send(returns['bet_on_two_sides'])
+                        await ctx.send(ERRORS['not_enough_money'])
             else:
-                await ctx.send(returns['event_not_exist'])
+                await ctx.send(ERRORS['event_not_exist'])
         else:
-            await ctx.send(returns['not_registered'])
+            await ctx.send(ERRORS['not_registered'])
         db_sess.commit()
 
 
